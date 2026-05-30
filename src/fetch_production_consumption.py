@@ -47,8 +47,8 @@ def main():
 
     # Primero probamos solo 7 días para ver columnas reales.
     df = fetch_production_consumption(
-        start="2024-01-01",
-        end="2025-02-20",
+        start="2024-08-10",
+        end="2025-10-01",
         price_area="DK2",
     )
 
@@ -56,7 +56,7 @@ def main():
         print("No file saved.")
         return
 
-    output_path = output_dir / "production_consumption_DK2_2024_01_01_2025_02_20.csv"
+    output_path = output_dir / "production_consumption_DK2_2024_08_10_2025_10_01.csv"
     df.to_csv(output_path, index=False)
 
     print(f"Saved: {output_path}")

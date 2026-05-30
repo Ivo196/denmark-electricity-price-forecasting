@@ -44,11 +44,11 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     weather = fetch_open_meteo_weather(
-        start_date="2024-01-01",
-        end_date="2025-02-19",
+        start_date="2024-08-10",
+        end_date="2025-10-01",
     )
 
-    output_path = output_dir / "weather_copenhagen_2024_01_01_2025_02_19.csv"
+    output_path = output_dir / "weather_copenhagen_2024_08_10_2025_10_01.csv"
     weather.to_csv(output_path, index=False)
 
     print(f"Saved: {output_path}")

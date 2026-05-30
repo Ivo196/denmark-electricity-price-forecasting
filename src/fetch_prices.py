@@ -44,14 +44,14 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     df = fetch_day_ahead_prices(
-        start="2024-01-01",
-        end="2025-02-20",
+        start="2024-08-10",
+        end="2025-10-01",
         price_area="DK2",
     )
 
     df = clean_prices(df)
 
-    output_path = output_dir / "elspotprices_DK2_2024_01_01_2025_02_20.csv"
+    output_path = output_dir / "prices_DK2_2024_08_10_2025_10_01.csv"
     df.to_csv(output_path, index=False)
 
     print(f"Saved: {output_path}")
