@@ -1,173 +1,230 @@
-# 🔋 Denmark Electricity Spot Price Forecasting & Battery Arbitrage
+# Denmark Electricity Spot Price Forecasting & Battery Arbitrage
 
-A machine learning and quantitative finance project to forecast day-ahead electricity spot prices in Denmark (**DK2 bidding zone**) and simulate battery storage arbitrage strategies.
+A machine learning and quantitative finance project to forecast day-ahead electricity spot prices in Denmark's DK2 bidding zone and simulate battery storage arbitrage strategies.
 
----
+The project is structured as a quant-engineering portfolio project: data ingestion, time-series feature engineering, predictive modelling, leakage-aware validation, economic backtesting, risk controls, and a deployable Streamlit dashboard.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3.9+-blue.svg?style=for-the-badge&logo=python&logoColor=white" alt="Python Version" />
-  <img src="https://img.shields.io/badge/XGBoost-1.7+-orange.svg?style=for-the-badge&logo=xgboost&logoColor=white" alt="XGBoost" />
-  <img src="https://img.shields.io/badge/Pandas-1.5+-purple.svg?style=for-the-badge&logo=pandas&logoColor=white" alt="Pandas" />
-  <img src="https://img.shields.io/badge/Scikit--Learn-1.2+-green.svg?style=for-the-badge&logo=scikit-learn&logoColor=white" alt="Scikit-Learn" />
-  <img src="https://img.shields.io/badge/PyTorch-2.0+-red.svg?style=for-the-badge&logo=pytorch&logoColor=white" alt="PyTorch" />
-</p>
+## Project Overview
 
----
+Electricity spot prices have become increasingly volatile as wind and solar generation expand. This project builds a complete research pipeline:
 
-## 📋 Project Overview
+1. Ingest electricity market, production, consumption, and weather data.
+2. Engineer lag, rolling, calendar, weather, and energy-system features.
+3. Train and compare baseline, XGBoost, and LSTM forecasting models.
+4. Validate forecasts with expanding walk-forward testing.
+5. Backtest a battery arbitrage strategy on DK2 price forecasts.
+6. Report risk metrics such as drawdown, daily PnL, stop-loss effects, and win rates.
 
-With the rapid expansion of wind and solar energy, electricity grid spot prices have become increasingly volatile. This project addresses the challenge by building a complete data, forecasting, and backtesting pipeline:
-1. **Ingest** real-time electricity and weather market data in Denmark.
-2. **Engineer** robust lags and rolling indicators for time-series forecasting.
-3. **Train & Validate** machine learning models (XGBoost, LSTM) against classic baseline models.
-4. **Simulate** battery arbitrage performance on historical DK2 price structures under strict risk management limits.
-
----
-
-## ⚙️ Pipeline Architecture
-
-The workflow is designed as a modular pipeline:
+## Pipeline Architecture
 
 ```mermaid
 graph TD
-    A[Energi Data Service API] -->|Spot Prices & Production Mix| D[(Raw Data Storage)]
-    B[Open-Meteo API] -->|Historical Weather Data| D
-    D --> E[Data Cleaning & Merging]
-    E --> F[Feature Engineering <br/> lags, rollings, time-features]
-    F --> G[Dataset Building]
-    G --> H[Model Training & Comparison <br/> XGBoost, Baselines, LSTM]
-    H --> I[Walk-Forward Validation]
-    I --> J[Economic Backtesting <br/> Battery Arbitrage Simulator]
-    J --> K[Risk Management <br/> Daily Stop-Loss Limits]
+    A["Energi Data Service API"] -->|"Spot prices, production, consumption"| D[("Raw data")]
+    B["Open-Meteo API"] -->|"Historical weather"| D
+    D --> E["Cleaning and merging"]
+    E --> F["Feature engineering: lags, rollings, calendar, weather"]
+    F --> G["Final modelling dataset"]
+    G --> H["Model training: baselines, XGBoost, LSTM"]
+    H --> I["Walk-forward validation"]
+    I --> J["Economic backtesting"]
+    J --> K["Risk management"]
+    K --> L["Streamlit dashboard"]
 ```
 
----
+## Results Snapshot
 
-## 📊 Modeling & Performance
+| Area | Result |
+|---|---:|
+| Best realistic forecast | Walk-forward XGBoost |
+| Forecast horizon | 24 hours ahead |
+| Walk-forward MAE | 25.48 EUR/MWh |
+| Walk-forward RMSE | 34.04 EUR/MWh |
+| Baseline MAE | 28.85 EUR/MWh |
+| Backtested PnL | 94,298.72 EUR |
+| Trades | 3,787 |
+| Trade win rate | 74.31% |
+| Win days | 84.44% |
+| Max drawdown | -793.74 EUR |
 
-Forecasting models were evaluated on the **DK2 bidding zone** against rolling statistics and lag baselines.
+## Modeling & Performance
 
-### 1. Next-Hour Price Forecasting
-Predicting price $y_{t+1}$ using historical data up to $t$:
+Forecasting models were evaluated on DK2 against persistence and rolling statistical baselines.
+
+### Next-Hour Price Forecasting
+
+Predicting price at `t + 1` using information available up to `t`.
 
 | Model | MAE (EUR/MWh) | RMSE (EUR/MWh) |
-| :--- | :---: | :---: |
-| **XGBoost (Optimal)** | **9.78** | **16.56** |
-| Current Price Baseline | 14.62 | 24.98 |
-| Lag 24h Baseline | 31.85 | 46.71 |
-| Lag 168h Baseline | 33.83 | 50.63 |
-| Rolling Mean 24h | 34.51 | 45.80 |
+|---|---:|---:|
+| XGBoost | 14.12 | 39.48 |
+| Current price baseline | 12.31 | 24.48 |
 
-### 2. 24h-Ahead Price Forecasting
-Predicting the price 24 hours in advance (essential for day-ahead market bidding):
+The next-hour persistence baseline is very strong, and the ML model does not outperform it in the final comparison.
 
-| Model | MAE (EUR/MWh) | RMSE (EUR/MWh) |
-| :--- | :---: | :---: |
-| **XGBoost 24h** | **25.58** | **34.89** |
-| Current Price Baseline | 28.30 | 42.29 |
-| Rolling Mean 168h | 37.69 | 49.88 |
-| Rolling Mean 24h | 40.72 | 53.81 |
+### 24-Hour-Ahead Price Forecasting
 
-### 📈 Feature Importance (Top Predictors)
-XGBoost model interpretations show that the following features have the highest predictive power:
-1. **SpotPriceEUR** (Most recent spot price lag)
-2. **net_load_mwh** (Total load minus wind/solar generation)
-3. **CommercialPowerMWh** (Commercial generation schedules)
-4. **solar_mwh / shortwave_radiation** (Solar indicators)
-5. **ExchangeGreatBelt_MWh** (Interconnector transmission schedules)
+Predicting the price 24 hours ahead, which is more relevant for day-ahead bidding.
 
----
+| Model | Validation | MAE (EUR/MWh) | RMSE (EUR/MWh) |
+|---|---|---:|---:|
+| Walk-forward XGBoost | Expanding walk-forward | 25.48 | 34.04 |
+| Current price baseline | Expanding walk-forward | 28.85 | 41.83 |
+| XGBoost | Fixed split | 25.38 | 34.53 |
+| PyTorch LSTM | Fixed split | 34.43 | 46.71 |
 
-## 🔋 Battery Arbitrage Backtesting & Risk Management
+## Feature Set Comparison
 
-We backtested a physical battery storage system trading on the day-ahead spot market using a simple threshold strategy:
-* **Position Size**: 1.0 MWh
-* **Trade Signal**: Buy if Expected Spread > €10; Sell if Expected Spread < -€10.
+| Feature set | Features | MAE | RMSE |
+|---|---:|---:|---:|
+| All features | 32 | 25.05 | 34.41 |
+| Price + calendar | 13 | 25.13 | 35.02 |
+| Price + energy | 27 | 25.15 | 34.67 |
+| Price + weather | 18 | 25.61 | 34.84 |
+| Price only | 8 | 26.62 | 36.97 |
+| Calendar only | 5 | 28.00 | 37.72 |
+| Current price baseline | 1 | 28.30 | 42.29 |
 
-### 💰 Backtest Performance Summary
-Evaluating the period **Feb 13, 2025 – Sep 25, 2025** (~7.5 months):
+## Battery Arbitrage Backtesting & Risk Management
 
-| Metric | Original Strategy | Risk-Controlled Strategy (€-500 Daily Stop) |
-| :--- | :---: | :---: |
-| **Total Profit (PnL)** | **€94,298.72** | **€94,432.16** |
-| **Number of Trades** | 3,787 | 3,787 |
-| **Win Rate (Trades)** | 74.31% | 74.31% |
-| **Average Profit/Trade** | €24.90 | €24.90 |
-| **Max Drawdown** | -€793.74 | -€793.74 |
-| **Best Trading Day** | €2,716.90 | €2,716.90 |
-| **Worst Trading Day** | -€720.76 | -€500.00 (Stop Loss Triggered) |
-| **Win Days Percentage** | 84.44% | 84.85% |
+The economic layer translates forecast signals into a simple battery arbitrage strategy.
 
----
+- Position size: 1.0 MWh
+- Main threshold: 10 EUR/MWh
+- Signal: trade only when the expected spread is large enough to clear the threshold
 
-## 📂 Project Structure
+| Metric | Original Strategy | Risk-Controlled Strategy |
+|---|---:|---:|
+| Total PnL | 94,298.72 EUR | 94,432.16 EUR |
+| Number of trades | 3,787 | 3,787 |
+| Trade win rate | 74.31% | 74.31% |
+| Average PnL/trade | 24.90 EUR | 24.90 EUR |
+| Max drawdown | -793.74 EUR | -793.74 EUR |
+| Best trading day | 2,716.90 EUR | 2,716.90 EUR |
+| Worst trading day | -720.76 EUR | -500.00 EUR daily stop |
+| Win days | 84.44% | 84.85% |
 
+## Dashboard
+
+The repository includes a Streamlit dashboard that summarizes the main modelling, backtesting, and risk outputs.
+
+```bash
+streamlit run app/streamlit_app.py
 ```
+
+The dashboard reads generated CSV files from `reports/` when they exist locally. If those files are missing, it falls back to portfolio-safe headline metrics so the deployed app still works without private or heavy data files.
+
+## Deployment
+
+This repository is ready to deploy on Streamlit Community Cloud.
+
+1. Push the repository to GitHub.
+2. Create a new app in Streamlit Community Cloud.
+3. Select this repository.
+4. Use this entry point:
+
+```text
+app/streamlit_app.py
+```
+
+No private datasets are required for the deployed dashboard.
+
+## Data Sources
+
+- [Energi Data Service](https://www.energidataservice.dk/) for spot prices, production, consumption, and load data.
+- [Open-Meteo](https://open-meteo.com/) for historical weather features such as wind speed, irradiance, and temperature.
+
+Raw and processed datasets are intentionally excluded from git. Generated report CSV files are also ignored by default because they can be regenerated from the notebooks.
+
+## Repository Structure
+
+```text
 denmark-electricity-price-forecasting/
+├── app/
+│   └── streamlit_app.py
 ├── data/
-│   ├── external/               # External datasets (KNMI, grid maps)
-│   ├── processed/              # Merged and cleaned weather/price features
-│   └── raw/                    # Raw downloads from APIs (prices, weather, load)
-├── notebooks/                  # Step-by-step EDA & Model training scripts
-├── src/                        # Modular source code
-│   ├── fetch_prices.py         # Pulls Danish spot prices from EDS API
-│   ├── fetch_production.py     # Pulls grid settlement / load data
-│   └── fetch_weather.py        # Fetches Open-Meteo weather datasets
-├── reports/                    # Performance CSVs and plots
-│   └── model_comparison_DK2.csv
-└── requirements.txt            # Package dependencies
+│   ├── external/.gitkeep
+│   ├── processed/.gitkeep
+│   └── raw/.gitkeep
+├── notebooks/
+│   ├── 01_eda_prices.ipynb
+│   ├── 02_clean_production_consumption.ipynb
+│   ├── 03_prices_feature_engineering_DK2.ipynb
+│   ├── 04_build_final_dataset_DK2.ipynb
+│   ├── 05_baseline_model_DK2.ipynb
+│   ├── 06_xgboost_model_DK2.ipynb
+│   ├── 07_forecast_horizon_24h_DK2.ipynb
+│   ├── 08_lstm_model_DK2.ipynb
+│   ├── 09_walk_forward_validation_DK2.ipynb
+│   ├── 10_leakage_audit_DK2.ipynb
+│   ├── 11_feature_sets_summary_DK2.ipynb
+│   ├── 12_model_comparison_DK2.ipynb
+│   ├── 13_economic_backtesting_DK2.ipynb
+│   └── 14_risk_management_DK2.ipynb
+├── reports/
+├── src/
+│   ├── fetch_prices.py
+│   ├── fetch_production_consumption.py
+│   └── fetch_weather.py
+├── .env.example
+├── .gitignore
+├── README.md
+└── requirements.txt
 ```
 
----
+## Notebook Directory Index
 
-## 📓 Notebook Directory Index
+| Step | Notebook | Purpose |
+|---|---|---|
+| 1 | `01_eda_prices.ipynb` | Exploratory analysis of DK electricity prices. |
+| 2 | `02_clean_production_consumption.ipynb` | Clean production and consumption inputs. |
+| 3 | `03_prices_feature_engineering_DK2.ipynb` | Build price, lag, calendar, weather, and energy-system features. |
+| 4 | `04_build_final_dataset_DK2.ipynb` | Assemble the final modelling dataset. |
+| 5 | `05_baseline_model_DK2.ipynb` | Evaluate simple persistence and rolling baselines. |
+| 6 | `06_xgboost_model_DK2.ipynb` | Train and evaluate XGBoost models. |
+| 7 | `07_forecast_horizon_24h_DK2.ipynb` | Move from next-hour to 24-hour-ahead forecasting. |
+| 8 | `08_lstm_model_DK2.ipynb` | Benchmark a sequential LSTM model. |
+| 9 | `09_walk_forward_validation_DK2.ipynb` | Run expanding-window out-of-sample validation. |
+| 10 | `10_leakage_audit_DK2.ipynb` | Audit features and validation logic for look-ahead leakage. |
+| 11 | `11_feature_sets_summary_DK2.ipynb` | Compare feature families. |
+| 12 | `12_model_comparison_DK2.ipynb` | Aggregate final model comparisons. |
+| 13 | `13_economic_backtesting_DK2.ipynb` | Run battery arbitrage backtests. |
+| 14 | `14_risk_management_DK2.ipynb` | Stress test PnL, drawdowns, and daily stop-loss rules. |
 
-To reproduce the analysis or explore specific pipeline steps, run the Jupyter Notebooks in sequence:
+## Setup
 
-| Notebook | Description |
-|---|---|
-| [`01_eda_prices.ipynb`](notebooks/01_eda_prices.ipynb) | Exploratory analysis of spot price statistics and distribution. |
-| [`02_clean_production_consumption.ipynb`](notebooks/02_clean_production_consumption.ipynb) | Aggregating grid production metrics (wind, solar, thermal). |
-| [`03_prices_feature_engineering_DK2.ipynb`](notebooks/03_prices_feature_engineering_DK2.ipynb) | Engineering lag features, rolling windows, and time steps. |
-| [`04_build_final_dataset_DK2.ipynb`](notebooks/04_build_final_dataset_DK2.ipynb) | Merging weather, production, and engineered price features. |
-| [`05_baseline_model_DK2.ipynb`](notebooks/05_baseline_model_DK2.ipynb) | Evaluating naive and rolling statistical baselines. |
-| [`06_xgboost_model_DK2.ipynb`](notebooks/06_xgboost_model_DK2.ipynb) | Next-Hour XGBoost model training and hyperparameter search. |
-| [`07_forecast_horizon_24h_DK2.ipynb`](notebooks/07_forecast_horizon_24h_DK2.ipynb) | 24h-Ahead Multi-step XGBoost model implementation. |
-| [`08_lstm_model_DK2.ipynb`](notebooks/08_lstm_model_DK2.ipynb) | Deep Learning LSTM model for sequential spot price modeling. |
-| [`09_walk_forward_validation_DK2.ipynb`](notebooks/09_walk_forward_validation_DK2.ipynb) | Robust walk-forward validation (Out-of-sample simulation). |
-| [`10_leakage_audit_DK2.ipynb`](notebooks/10_leakage_audit_DK2.ipynb) | Code validation audit to prevent look-ahead bias. |
-| [`11_feature_sets_summary_DK2.ipynb`](notebooks/11_feature_sets_summary_DK2.ipynb) | Impact analysis of different features on model metrics. |
-| [`12_model_comparison_DK2.ipynb`](notebooks/12_model_comparison_DK2.ipynb) | Aggregated comparison of ML and DL models. |
-| [`13_economic_backtesting_DK2.ipynb`](notebooks/13_economic_backtesting_DK2.ipynb) | Running the battery arbitrage trading simulation. |
-| [`14_risk_management_DK2.ipynb`](notebooks/14_risk_management_DK2.ipynb) | Stress testing PnL using daily stop-losses and drawdowns. |
-
----
-
-## 🚀 Setup & Execution
-
-### 1. Clone the repository
 ```bash
-git clone https://github.com/your-username/denmark-electricity-price-forecasting.git
+git clone https://github.com/Ivo196/denmark-electricity-price-forecasting.git
 cd denmark-electricity-price-forecasting
-```
 
-### 2. Set up environment
-Create a virtual environment and install dependencies:
-```bash
 python -m venv .venv
-source .venv/bin/activate  # On Windows use: .venv\Scripts\activate
+
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+
+# macOS/Linux
+source .venv/bin/activate
+
 pip install -r requirements.txt
 ```
 
-### 3. Fetch Raw Data
-Run the scripts in `src/` to update your data directory:
+If you want to regenerate the data, copy the environment template and add any required API configuration:
+
 ```bash
-# Fetch prices
+cp .env.example .env
+```
+
+## Fetch Raw Data
+
+```bash
 python src/fetch_prices.py
-
-# Fetch weather data
 python src/fetch_weather.py
-
-# Fetch grid settlement data
 python src/fetch_production_consumption.py
 ```
+
+## Next Engineering Improvements
+
+- Move training, validation, and backtesting logic from notebooks into reusable modules under `src/`.
+- Add a command-line workflow for data build, model training, validation, and report generation.
+- Add unit tests for feature generation, leakage checks, and backtest accounting.
+- Add latency benchmarks for feature generation and model inference.
+- Add CI to run formatting, tests, and a Streamlit smoke test.

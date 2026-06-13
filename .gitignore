@@ -57,6 +57,9 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
+# Local app logs
+.streamlit/*.log
+
 # Data & Model Files (Prevent uploading datasets or heavy serialized models)
 *.csv
 *.xlsx
